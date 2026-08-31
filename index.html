@@ -1,127 +1,81 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Station: Electrical Wiring</title>
-    <link href="https://googleapis.com" rel="stylesheet">
-    <style>
-        body { margin: 0; background-color: #0b0c10; color: #c5c6c7; font-family: 'VT323', monospace; font-size: 24px; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; overflow: hidden; user-select: none; }
-        select { width: 80%; padding: 12px; background: #1f2833; border: 2px solid #ff007f; color: #fff; font-family: inherit; font-size: 1.5rem; text-align: center; margin-bottom: 20px; border-radius: 5px; }
-        .wire-board { position: relative; width: 320px; height: 24px0px; background: #151a21; border: 3px solid #333; border-radius: 8px; display: flex; justify-content: space-between; padding: 20px; box-sizing: border-box; }
-        .node-column { display: flex; flex-direction: column; justify-content: space-between; height: 100%; z-index: 5; }
-        .node { width: 30px; height: 30px; border-radius: 5px; cursor: pointer; border: 2px solid #fff; box-sizing: border-box; }
-        .node.red { background: #ff4d4d; } .node.blue { background: #45f3ff; } .node.yellow { background: #ffc107; }
-        svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
-        #lockout-screen { display: none; position: absolute; width: 100vw; height: 100vh; background: rgba(0,0,0,0.95); color: #ff4d4d; font-size: 3rem; flex-direction: column; justify-content: center; align-items: center; top: 0; left: 0; z-index: 99; }
-    </style>
-</head>
-<body>
+import { initializeApp } from "https://gstatic.com";
+import { getDatabase, ref, onValue, runTransaction } from "https://gstatic.com";
 
-    <div id="lockout-screen">
-        <div>🚨 MEETING IN PROGRESS 🚨</div>
-        <div style="font-size: 1.5rem; color: #aaa; margin-top: 15px;">STATION SYSTEM LOCKED DOWN</div>
-    </div>
+const firebaseConfig = {
+    apiKey: "AIzaSyCsa91MCqAjzccK48x_ftJRvxMTzX6W4dE",
+    authDomain: "://firebaseapp.com",
+    databaseURL: "https://firebaseio.com",
+    projectId: "irl-among-us-ff4ea",
+    storageBucket: "irl-among-us-ff4ea.firebasestorage.app",
+    messagingSenderId: "53670811061",
+    appId: "1:53670811061:web:02047dd2d9e9dfef2535fc"
+};
 
-    <h1>STATION: FIX WIRING</h1>
-    <select id="player-select"><option value="">-- SELECT YOUR NAME --</option></select>
+// INITIALIZE: Fixed the background connection link
+const app = initializeApp(firebaseConfig);
+const database = getDatabase(app);
 
-    <div class="wire-board">
-        <svg id="wire-svg"></svg>
-        <div class="node-column">
-            <div class="node red" data-color="red" data-side="left"></div>
-            <div class="node blue" data-color="blue" data-side="left"></div>
-            <div class="node yellow" data-color="yellow" data-side="left"></div>
-        </div>
-        <div class="node-column">
-            <div class="node blue" data-color="blue" data-side="right"></div>
-            <div class="node yellow" data-color="yellow" data-side="right"></div>
-            <div class="node red" data-color="red" data-side="right"></div>
-        </div>
-    </div>
-    <div id="wire-status" style="margin-top: 20px; color: #aaa;">TAP MATCHING COLOURS TO WIRE SYSTEM</div>
+let allPlayersData = {}, selectedLeftNode = null, connections = {};
+const playerSelect = document.getElementById('player-select');
+const svg = document.getElementById('wire-svg');
 
-    <script type="module">
-        import { initializeApp } from "https://gstatic.com";
-        import { getDatabase, ref, onValue, runTransaction } from "https://gstatic.com";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyCsa91MCqAjzccK48x_ftJRvxMTzX6W4dE",
-            authDomain: "://firebaseapp.com",
-            databaseURL: "https://firebaseio.com",
-            projectId: "irl-among-us-ff4ea",
-            storageBucket: "irl-among-us-ff4ea.firebasestorage.app",
-            messagingSenderId: "53670811061",
-            appId: "1:53670811061:web:02047dd2d9e9dfef2535fc"
-        };
-
-        firebase.initializeApp(firebaseConfig);
-        const database = getDatabase(app);
-
-        let allPlayersData = {}, selectedLeftNode = null, connections = {};
-        const playerSelect = document.getElementById('player-select');
-        const svg = document.getElementById('wire-svg');
-
-        onValue(ref(database, 'players'), (snapshot) => {
-            allPlayersData = snapshot.val() || {};
-            playerSelect.innerHTML = '<option value="">-- SELECT YOUR NAME --</option>';
-            Object.keys(allPlayersData).forEach(key => {
-                if (allPlayersData[key].status === "Alive") {
-                    let opt = document.createElement('option'); opt.value = key; opt.innerText = allPlayersData[key].name;
-                    playerSelect.appendChild(opt);
-                }
-            });
-        });
-
-        onValue(ref(database, 'game_state/screen'), (snapshot) => {
-            document.getElementById('lockout-screen').style.display = (snapshot.val() === "MEETING" || snapshot.val() === "EJECT") ? "flex" : "none";
-        });
-
-        // --- Wiring Matching Interaction Flow Engine ---
-        document.querySelectorAll('.node').forEach(node => {
-            node.addEventListener('click', () => {
-                if(!playerSelect.value) { alert("Select your name first!"); return; }
-                const side = node.dataset.side, color = node.dataset.color;
-
-                if (side === "left") {
-                    if(connections[color]) return; // already wired
-                    selectedLeftNode = node;
-                    document.querySelectorAll('.node[data-side="left"]').forEach(n => n.style.borderColor = "#fff");
-                    node.style.borderColor = "#000";
-                } else if (side === "right" && selectedLeftNode) {
-                    if (selectedLeftNode.dataset.color === color) {
-                        // Successful Connection! Draw line
-                        connections[color] = true;
-                        drawLine(selectedLeftNode, node, color);
-                        selectedLeftNode.style.borderColor = "#fff";
-                        selectedLeftNode = null;
-                        checkWiringCompletion();
-                    } else {
-                        document.getElementById('wire-status').innerText = "MISWIRE! THOSE DON'T MATCH.";
-                        selectedLeftNode.style.borderColor = "#fff"; selectedLeftNode = null;
-                    }
-                }
-            });
-        });
-
-        function drawLine(n1, n2, color) {
-            const rect1 = n1.getBoundingClientRect(), rect2 = n2.getBoundingClientRect(), board = document.querySelector('.wire-board').getBoundingClientRect();
-            const line = document.createElementNS("http://w3.org", "line");
-            line.setAttribute("x1", rect1.left - board.left + 15); line.setAttribute("y1", rect1.top - board.top + 15);
-            line.setAttribute("x2", rect2.left - board.left + 15); line.setAttribute("y2", rect2.top - board.top + 15);
-            line.setAttribute("stroke", color === "red" ? "#ff4d4d" : color === "blue" ? "#45f3ff" : "#ffc107");
-            line.setAttribute("stroke-width", "6"); svg.appendChild(line);
+onValue(ref(database, 'players'), (snapshot) => {
+    allPlayersData = snapshot.val() || {};
+    playerSelect.innerHTML = '<option value="">-- SELECT YOUR NAME --</option>';
+    Object.keys(allPlayersData).forEach(key => {
+        if (allPlayersData[key].status === "Alive") {
+            let opt = document.createElement('option'); opt.value = key; opt.innerText = allPlayersData[key].name;
+            playerSelect.appendChild(opt);
         }
+    });
+});
 
-        function checkWiringCompletion() {
-            if (connections.red && connections.blue && connections.yellow) {
-                document.getElementById('wire-status').innerText = "ELECTRICAL REPAIRED!";
-                if (allPlayersData[playerSelect.value].role === "Crewmate") {
-                    runTransaction(ref(database, 'game_state/tasks_completed'), c => (c || 0) + 1);
-                }
-                setTimeout(() => { playerSelect.value = ""; svg.innerHTML = ""; connections = {}; document.getElementById('wire-status').innerText = "TAP MATCHING COLOURS TO WIRE SYSTEM"; }, 2500);
+onValue(ref(database, 'game_state/screen'), (snapshot) => {
+    document.getElementById('lockout-screen').style.display = (snapshot.val() === "MEETING" || snapshot.val() === "EJECT") ? "flex" : "none";
+});
+
+// --- Wiring Matching Interaction Flow Engine ---
+document.querySelectorAll('.node').forEach(node => {
+    node.addEventListener('click', () => {
+        if(!playerSelect.value) { alert("Select your name first!"); return; }
+        const side = node.dataset.side, color = node.dataset.color;
+
+        if (side === "left") {
+            if(connections[color]) return; // already wired
+            selectedLeftNode = node;
+            document.querySelectorAll('.node[data-side="left"]').forEach(n => n.style.borderColor = "#fff");
+            node.style.borderColor = "#000";
+        } else if (side === "right" && selectedLeftNode) {
+            if (selectedLeftNode.dataset.color === color) {
+                connections[color] = true;
+                drawLine(selectedLeftNode, node, color);
+                selectedLeftNode.style.borderColor = "#fff";
+                selectedLeftNode = null;
+                checkWiringCompletion();
+            } else {
+                document.getElementById('wire-status').innerText = "MISWIRE! THOSE DON'T MATCH.";
+                selectedLeftNode.style.borderColor = "#fff"; selectedLeftNode = null;
             }
         }
-    </script>
-</body>
-</html>
+    });
+});
+
+function drawLine(n1, n2, color) {
+    const rect1 = n1.getBoundingClientRect(), rect2 = n2.getBoundingClientRect(), board = document.querySelector('.wire-board').getBoundingClientRect();
+    const line = document.createElementNS("http://w3.org", "line");
+    line.setAttribute("x1", rect1.left - board.left + 15); line.setAttribute("y1", rect1.top - board.top + 15);
+    line.setAttribute("x2", rect2.left - board.left + 15); line.setAttribute("y2", rect2.top - board.top + 15);
+    line.setAttribute("stroke", color === "red" ? "#ff4d4d" : color === "blue" ? "#45f3ff" : "#ffc107");
+    line.setAttribute("stroke-width", "6"); svg.appendChild(line);
+}
+
+function checkWiringCompletion() {
+    if (connections.red && connections.blue && connections.yellow) {
+        document.getElementById('wire-status').innerText = "ELECTRICAL REPAIRED!";
+        if (allPlayersData[playerSelect.value].role === "Crewmate") {
+            runTransaction(ref(database, 'game_state/tasks_completed'), c => (c || 0) + 1);
+        }
+        setTimeout(() => { playerSelect.value = ""; svg.innerHTML = ""; connections = {}; document.getElementById('wire-status').innerText = "TAP MATCHING COLOURS TO WIRE SYSTEM"; }, 2500);
+    }
+}
+
