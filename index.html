@@ -1,90 +1,162 @@
-<!-- 1. The full, fixed script URLs to load the Firebase database correctly -->
-<script src="https://gstatic.com/firebase-app-compat.js"></script>
-<script src="https://gstatic.com/firebase-database-compat.js"></script>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Station: Electrical Wiring</title>
+    <!-- Loads the required core Firebase libraries at the top -->
+    <script src="https://gstatic.com/firebase-app-compat.js"></script>
+    <script src="https://gstatic.com/firebase-database-compat.js"></script>
+    
+    <style>
+        body { 
+            margin: 0; background-color: #0b0c10; color: #c5c6c7; 
+            font-family: sans-serif; font-size: 24px; 
+            display: flex; flex-direction: column; justify-content: center; align-items: center; 
+            height: 100vh; overflow: hidden; user-select: none; 
+        }
+        select { 
+            width: 80%; padding: 12px; background: #1f2833; border: 2px solid #ffc107; 
+            color: #fff; font-family: inherit; font-size: 1.5rem; text-align: center; 
+            margin-bottom: 20px; border-radius: 5px; 
+        }
+        .wire-board { 
+            position: relative; width: 320px; height: 240px; background: #151a21; 
+            border: 3px solid #333; border-radius: 8px; display: flex; 
+            justify-content: space-between; padding: 20px; box-sizing: border-box; 
+        }
+        .node-column { display: flex; flex-direction: column; justify-content: space-between; height: 100%; z-index: 5; }
+        .node { width: 30px; height: 30px; border-radius: 5px; cursor: pointer; border: 2px solid #fff; box-sizing: border-box; }
+        .node.red { background: #ff4d4d; } .node.blue { background: #45f3ff; } .node.yellow { background: #ffc107; }
+        svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
+        #lockout-screen { 
+            display: none; position: absolute; width: 100vw; height: 100vh; 
+            background: rgba(0,0,0,0.95); color: #ff4d4d; font-size: 3rem; 
+            flex-direction: column; justify-content: center; align-items: center; 
+            top: 0; left: 0; z-index: 999; 
+        }
+    </style>
+</head>
+<body>
 
-<script>
-    // 2. The completely repaired connection configuration block
-    const firebaseConfig = { 
-        apiKey: "AIzaSyCsa91MCqAjzccK48x_ftJRvxMTzX6W4dE", 
-        authDomain: "://firebaseapp.com", 
-        databaseURL: "https://firebaseio.com", 
-        projectId: "irl-among-us-ff4ea", 
-        storageBucket: "irl-among-us-ff4ea.firebasestorage.app", 
-        messagingSenderId: "53670811061", 
-        appId: "1:53670811061:web:02047dd2d9e9dfef2535fc" 
-    };
+    <!-- Emergency Meeting Station Lockdown Screen Overlay -->
+    <div id="lockout-screen">
+        <div>🚨 MEETING ACTIVE</div>
+        <div style="font-size: 1.5rem; color: #aaa; margin-top: 15px;">STATION LOCKED DOWN</div>
+    </div>
 
-    // 3. Fixed the background connection keywords
-    firebase.initializeApp(firebaseConfig); 
-    const database = firebase.database();
+    <h1>STATION: FIX WIRING</h1>
+    
+    <!-- Player Selection Dropdown Menu -->
+    <select id="player-select">
+        <option value="">-- SELECT YOUR NAME --</option>
+    </select>
 
-    let allPlayersData = {}, selectedLeftNode = null, connections = {}; 
-    const playerSelect = document.getElementById('player-select'); 
-    const svg = document.getElementById('wire-svg'); 
+    <!-- The Interactive Wiring Board Grid -->
+    <div class="wire-board">
+        <svg id="wire-svg"></svg>
+        <div class="node-column">
+            <div class="node red" data-color="red" data-side="left"></div>
+            <div class="node blue" data-color="blue" data-side="left"></div>
+            <div class="node yellow" data-color="yellow" data-side="left"></div>
+        </div>
+        <div class="node-column">
+            <div class="node blue" data-color="blue" data-side="right"></div>
+            <div class="node yellow" data-color="yellow" data-side="right"></div>
+            <div class="node red" data-color="red" data-side="right"></div>
+        </div>
+    </div>
+    
+    <div id="wire-status" style="margin-top: 20px; color: #aaa; font-size: 1.2rem;">TAP MATCHING COLOURS TO WIRE SYSTEM</div>
 
-    // 4. Converted the functions from modular import format to standard server format
-    database.ref('players').on('value', (snapshot) => { 
-        allPlayersData = snapshot.val() || {}; 
-        playerSelect.innerHTML = '<option value="">-- SELECT YOUR NAME --</option>'; 
-        Object.keys(allPlayersData).forEach(key => { 
-            if (allPlayersData[key].status === "Alive") { 
-                let opt = document.createElement('option'); 
-                opt.value = key; opt.innerText = allPlayersData[key].name; 
-                playerSelect.appendChild(opt); 
-            } 
-        }); 
-    }); 
+    <script>
+        // Completely repaired connection configuration block
+        const firebaseConfig = { 
+            apiKey: "AIzaSyCsa91MCqAjzccK48x_ftJRvxMTzX6W4dE", 
+            authDomain: "://firebaseapp.com", 
+            databaseURL: "https://firebaseio.com", 
+            projectId: "irl-among-us-ff4ea", 
+            storageBucket: "irl-among-us-ff4ea.firebasestorage.app", 
+            messagingSenderId: "53670811061", 
+            appId: "1:53670811061:web:02047dd2d9e9dfef2535fc" 
+        };
 
-    database.ref('game_state/screen').on('value', (snapshot) => { 
-        document.getElementById('lockout-screen').style.display = (snapshot.val() === "MEETING" || snapshot.val() === "EJECT") ? "flex" : "none"; 
-    }); 
+        // Initialize background network hooks
+        firebase.initializeApp(firebaseConfig); 
+        const database = firebase.database();
 
-    document.querySelectorAll('.node').forEach(node => { 
-        node.addEventListener('click', () => { 
-            if(!playerSelect.value) { alert("Select your name first!"); return; } 
-            const side = node.dataset.side, color = node.dataset.color; 
-            if (side === "left") { 
-                if(connections[color]) return; 
-                selectedLeftNode = node; 
-                document.querySelectorAll('.node[data-side="left"]').forEach(n => n.style.borderColor = "#fff"); 
-                node.style.borderColor = "#000"; 
-            } else if (side === "right" && selectedLeftNode) { 
-                if (selectedLeftNode.dataset.color === color) { 
-                    connections[color] = true; 
-                    drawLine(selectedLeftNode, node, color); 
-                    selectedLeftNode.style.borderColor = "#fff"; 
-                    selectedLeftNode = null; 
-                    checkWiringCompletion(); 
-                } else { 
-                    document.getElementById('wire-status').innerText = "MISWIRE! THOSE DON'T MATCH."; 
-                    selectedLeftNode.style.borderColor = "#fff"; selectedLeftNode = null; 
+        let allPlayersData = {}, selectedLeftNode = null, connections = {}; 
+        const playerSelect = document.getElementById('player-select'); 
+        const svg = document.getElementById('wire-svg'); 
+
+        // Populate dynamic names dropdown list directly from the database roster logs
+        database.ref('players').on('value', (snapshot) => { 
+            allPlayersData = snapshot.val() || {}; 
+            playerSelect.innerHTML = '<option value="">-- SELECT YOUR NAME --</option>'; 
+            Object.keys(allPlayersData).forEach(key => { 
+                if (allPlayersData[key].status === "Alive") { 
+                    let opt = document.createElement('option'); 
+                    opt.value = key; opt.innerText = allPlayersData[key].name; 
+                    playerSelect.appendChild(opt); 
                 } 
-            } 
+            }); 
         }); 
-    }); 
 
-    function drawLine(n1, n2, color) { 
-        const rect1 = n1.getBoundingClientRect(), rect2 = n2.getBoundingClientRect(), board = document.querySelector('.wire-board').getBoundingClientRect(); 
-        const line = document.createElementNS("http://w3.org", "line"); 
-        line.setAttribute("x1", rect1.left - board.left + 15); 
-        line.setAttribute("y1", rect1.top - board.top + 15); 
-        line.setAttribute("x2", rect2.left - board.left + 15); 
-        line.setAttribute("y2", rect2.top - board.top + 15); 
-        line.setAttribute("stroke", color === "red" ? "#ff4d4d" : color === "blue" ? "#45f3ff" : "#ffc107"); 
-        line.setAttribute("stroke-width", "6"); 
-        svg.appendChild(line); 
-    } 
+        // Lock the station immediately if the host triggers an Emergency Meeting
+        database.ref('game_state/screen').on('value', (snapshot) => { 
+            document.getElementById('lockout-screen').style.display = (snapshot.val() === "MEETING" || snapshot.val() === "EJECT") ? "flex" : "none"; 
+        }); 
 
-    function checkWiringCompletion() { 
-        if (connections.red && connections.blue && connections.yellow) { 
-            document.getElementById('wire-status').innerText = "ELECTRICAL REPAIRED!"; 
-            if (allPlayersData[playerSelect.value].role === "Crewmate") { 
-                database.ref('game_state/tasks_completed').transaction(c => (c || 0) + 1); 
-            } 
-            setTimeout(() => { 
-                playerSelect.value = ""; svg.innerHTML = ""; connections = {}; 
-                document.getElementById('wire-status').innerText = "TAP MATCHING COLOURS TO WIRE SYSTEM"; 
-            }, 2500); 
+        // Wiring node touch event listeners 
+        document.querySelectorAll('.node').forEach(node => { 
+            node.addEventListener('click', () => { 
+                if(!playerSelect.value) { alert("Select your name first!"); return; } 
+                const side = node.dataset.side, color = node.dataset.color; 
+                
+                if (side === "left") { 
+                    if(connections[color]) return; 
+                    selectedLeftNode = node; 
+                    document.querySelectorAll('.node[data-side="left"]').forEach(n => n.style.borderColor = "#fff"); 
+                    node.style.borderColor = "#000"; 
+                } else if (side === "right" && selectedLeftNode) { 
+                    if (selectedLeftNode.dataset.color === color) { 
+                        connections[color] = true; 
+                        drawLine(selectedLeftNode, node, color); 
+                        selectedLeftNode.style.borderColor = "#fff"; 
+                        selectedLeftNode = null; 
+                        checkWiringCompletion(); 
+                    } else { 
+                        document.getElementById('wire-status').innerText = "MISWIRE! THOSE DON'T MATCH."; 
+                        selectedLeftNode.style.borderColor = "#fff"; selectedLeftNode = null; 
+                    } 
+                } 
+            }); 
+        }); 
+
+        function drawLine(n1, n2, color) { 
+            const rect1 = n1.getBoundingClientRect(), rect2 = n2.getBoundingClientRect(), board = document.querySelector('.wire-board').getBoundingClientRect(); 
+            const line = document.createElementNS("http://w3.org", "line"); 
+            line.setAttribute("x1", rect1.left - board.left + 15); 
+            line.setAttribute("y1", rect1.top - board.top + 15); 
+            line.setAttribute("x2", rect2.left - board.left + 15); 
+            line.setAttribute("y2", rect2.top - board.top + 15); 
+            line.setAttribute("stroke", color === "red" ? "#ff4d4d" : color === "blue" ? "#45f3ff" : "#ffc107"); 
+            line.setAttribute("stroke-width", "6"); 
+            svg.appendChild(line); 
         } 
-    }
-</script>
+
+        function checkWiringCompletion() { 
+            if (connections.red && connections.blue && connections.yellow) { 
+                document.getElementById('wire-status').innerText = "ELECTRICAL REPAIRED!"; 
+                if (allPlayersData[playerSelect.value].role === "Crewmate") { 
+                    database.ref('game_state/tasks_completed').transaction(c => (c || 0) + 1); 
+                } 
+                setTimeout(() => { 
+                    playerSelect.value = ""; svg.innerHTML = ""; connections = {}; 
+                    document.getElementById('wire-status').innerText = "TAP MATCHING COLOURS TO WIRE SYSTEM"; 
+                }, 2500); 
+            } 
+        }
+    </script>
+</body>
+</html>
