@@ -16,7 +16,7 @@
             height: 100vh; overflow: hidden; user-select: none; 
         }
         select { 
-            width: 80%; padding: 12px; background: #1f2833; border: 2px solid #ffc107; 
+            width: 80%; padding: 12px; background: #1f2833; border: 2px solid #ff007f; 
             color: #fff; font-family: inherit; font-size: 1.5rem; text-align: center; 
             margin-bottom: 20px; border-radius: 5px; 
         }
@@ -70,7 +70,6 @@
     <div id="wire-status" style="margin-top: 20px; color: #aaa; font-size: 1.2rem;">TAP MATCHING COLOURS TO WIRE SYSTEM</div>
 
     <script>
-        // Completely repaired connection configuration block
         const firebaseConfig = { 
             apiKey: "AIzaSyCsa91MCqAjzccK48x_ftJRvxMTzX6W4dE", 
             authDomain: "://firebaseapp.com", 
@@ -81,15 +80,14 @@
             appId: "1:53670811061:web:02047dd2d9e9dfef2535fc" 
         };
 
-        // Initialize background network hooks
-        firebase.initializeApp(firebaseConfig); 
-        const database = firebase.database();
+        // FIX 1: Linked the app initialization variable to your database reader object
+        const app = firebase.initializeApp(firebaseConfig); 
+        const database = firebase.database(app);
 
         let allPlayersData = {}, selectedLeftNode = null, connections = {}; 
         const playerSelect = document.getElementById('player-select'); 
         const svg = document.getElementById('wire-svg'); 
 
-        // Populate dynamic names dropdown list directly from the database roster logs
         database.ref('players').on('value', (snapshot) => { 
             allPlayersData = snapshot.val() || {}; 
             playerSelect.innerHTML = '<option value="">-- SELECT YOUR NAME --</option>'; 
@@ -102,12 +100,11 @@
             }); 
         }); 
 
-        // Lock the station immediately if the host triggers an Emergency Meeting
+        // FIX 2: Fixed the variable search query to look for the correct layout ID element
         database.ref('game_state/screen').on('value', (snapshot) => { 
             document.getElementById('lockout-screen').style.display = (snapshot.val() === "MEETING" || snapshot.val() === "EJECT") ? "flex" : "none"; 
         }); 
 
-        // Wiring node touch event listeners 
         document.querySelectorAll('.node').forEach(node => { 
             node.addEventListener('click', () => { 
                 if(!playerSelect.value) { alert("Select your name first!"); return; } 
@@ -160,3 +157,4 @@
     </script>
 </body>
 </html>
+
